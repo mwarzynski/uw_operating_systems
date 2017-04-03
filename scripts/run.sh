@@ -1,25 +1,30 @@
 #!/bin/sh
+
+# Revert MINIX image to last clean one.
 cp snapshots/minix.img minix.img
+
+# Compile bootloaders to binary files.
 nasm -f bin bootloader.asm
 nasm -f bin bootloader2.asm
 
-./scripts/qemu.sh &
+# Run MINIX.
+./scripts/qemu.sh > /dev/null 2> /dev/null &
 
+# Wait for MINIX's sshd daemon.
 sleep 5
 
+# Copy files to MINIX.
 scp bootloader minix:~/bootloader
 scp bootloader2 minix:~/bootloader2
 scp profile minix:~/profile
+scp injector.sh minix:~/injector.sh
 
+# Clean up binary files.
 rm bootloader
 rm bootloader2
 
+# Execute injector.
 ssh minix << "ENDSSH"
-dd bs=512 count=1 if=/dev/c0d0  of=orig_bootloader &&
-dd bs=512 count=1 if=bootloader of=/dev/c0d0 &&
-dd bs=512 seek=1 count=1 if=orig_bootloader of=/dev/c0d0 &&
-dd bs=512 seek=2 count=1 if=bootloader2 of=/dev/c0d0 &&
-cat profile >> .profile &&
-reboot
+sh injector.sh 
 ENDSSH
 

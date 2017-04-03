@@ -169,8 +169,8 @@ print_char:
     ret
 
 sleep:
-    mov cx, 0x0020
-    mov dx, 0x16480
+    mov cx, 0x20
+    mov dx, 0x0
     mov ah, 0x86
     int 0x15
     ret
