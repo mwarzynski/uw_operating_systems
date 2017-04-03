@@ -14,8 +14,8 @@ start:
     ; read valid username from input
     call prompt_username
 
-    ; TODO: Po zaakceptowaniu imienia na ekranie maszyny wyświetla się napis "Hello $name\r\n".
-    ; TODO: Po upływie 2 sekund zostaje uruchomiony oryginalny bootloader (z oryginalnego obrazu MINIX-a).
+    call print_username
+    call sleep
 
     ; copy original and second bootloader to RAM
     ; 0x7c00 - first
@@ -36,9 +36,8 @@ load_bootloaders:
     ret
 
 prompt_username:
-    push bx
     xor bx, bx
-
+    
     .prompt_start:
     ; get character from input
     mov ah, 0x00
@@ -106,8 +105,51 @@ prompt_username:
     mov bx, BUFFER
     int 0x13
 
-    pop bx
     ret
+
+print_username:
+    
+    mov bh, 0
+    mov ah, 0x3
+    int 0x10
+
+    mov ah, 0x2
+    mov dl, 0
+    inc dh
+    int 0x10
+
+    xor bx, bx
+
+    mov al, 'H'
+    call print_char
+    mov al, 'e'
+    call print_char
+    mov al, 'l'
+    call print_char
+    mov al, 'l'
+    call print_char
+    mov al, 'o'
+    call print_char
+    mov al, ' '
+    call print_char
+
+    .print_username_char:
+    cmp bx, 12
+    je .print_username_ret
+    mov al, byte [BUFFER + bx]
+    cmp al, 0x0
+    je .print_username_ret
+    call print_char
+    inc bx
+    jmp .print_username_char
+
+    .print_username_ret:
+    mov al, 0xd
+    call print_char
+    mov al, 0xa
+    call print_char
+    ret
+
 
 print:
     mov bx, ax
@@ -125,6 +167,14 @@ print_char:
     mov ah, 0xe
     int 0x10
     ret
+
+sleep:
+    mov cx, 0x0020
+    mov dx, 0x16480
+    mov ah, 0x86
+    int 0x15
+    ret
+
 
 PROMPT_MSG: db 'Enter your name', 0xd, 0xa, 0x0
 BUFFER: times 15 db 0
