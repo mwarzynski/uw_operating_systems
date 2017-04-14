@@ -11,9 +11,9 @@ sleep 3
 
 # Copy files to MINIX.
 scp src/* minix:~/
-scp install.sh minix:~/install.sh
+scp myps.sh minix:~/myps.sh
 
-# Execute injector.
-ssh minix << "ENDSSH"
-sh install.sh
+# Execute installation of system call.
+ssh minix << ENDSSH
+sh myps.sh
 ENDSSH
