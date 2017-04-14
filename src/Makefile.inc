@@ -7,4 +7,4 @@
 SRCS+=	initfini.c
 
 # for -fstack-protector
-SRCS+=	stack_protector.c myps.c
+SRCS+=	stack_protector.c myps.c # SO-TASK-4
