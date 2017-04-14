@@ -7,13 +7,13 @@ cp snapshots/minix.img minix.img
 ./scripts/qemu.sh > /dev/null 2> /dev/null &
 
 # Wait for MINIX's sshd daemon.
-sleep 5
+sleep 3
 
 # Copy files to MINIX.
-#scp bootloader minix:~/bootloader
+scp src/* minix:~/
+scp install.sh minix:~/install.sh
 
 # Execute injector.
 ssh minix << "ENDSSH"
-poweroff
+sh install.sh
 ENDSSH
-
