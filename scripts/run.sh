@@ -1,7 +1,9 @@
 #!/bin/sh
 
 cp src/* sources/new/servers/sched/
-diff -rupN sources/old sources/new > mw371854.patch
+cd sources
+diff -rupN minix new > ../mw371854.patch
+cd ..
 
 # Revert MINIX image to last clean one.
 cp snapshots/minix.img minix.img
@@ -13,7 +15,7 @@ cp snapshots/minix.img minix.img
 sleep 10
 
 # Copy files to MINIX.
-scp sources/mw371854.patch minix:~/
+scp mw371854.patch minix:~/
 scp sched.sh minix:~/
 scp test0.sh minix:~/
 
