@@ -43,7 +43,7 @@ EXTERN struct schedproc {
 
     /* Tokens */
     int tokens;        /* number of tokens */
-    clock_t last_time; /* last sys time value when updated tokens for this process */
+    clock_t tokens_updated; /* last sys time value when updated tokens for this process */
 } schedproc[NR_PROCS];
 
 /* Flag values */

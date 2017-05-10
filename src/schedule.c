@@ -166,10 +166,6 @@ int do_start_scheduling(message *m_ptr)
 	}
 	rmp = &schedproc[proc_nr_n];
 
-    // Set token values
-    rmp->tokens = MAX_TOKENS;
-    rmp->last_time = 0;
-
 	/* Populate process slot */
 	rmp->endpoint     = m_ptr->m_lsys_sched_scheduling_start.endpoint;
 	rmp->parent       = m_ptr->m_lsys_sched_scheduling_start.parent;
@@ -177,6 +173,10 @@ int do_start_scheduling(message *m_ptr)
 	if (rmp->max_priority >= NR_SCHED_QUEUES) {
 		return EINVAL;
 	}
+
+    // Set token values
+    rmp->tokens = MAX_TOKENS;
+    sys_time(rmp->endpoint, NULL, &rmp->tokens_updated, NULL, NULL);
 
 	/* Inherit current priority and time slice from parent. Since there
 	 * is currently only one scheduler scheduling the whole system, this
@@ -405,8 +405,10 @@ static void balance_queues(minix_timer_t *tp)
  */
 static int generate_tokens() {
     static clock_t last_sys_time = 0;
+    clock_t sys_time;
     
-    clock_t sys_time = p_sys_time(0);
+    sys_times(0, NULL, NULL, &sys_time, NULL); // always succeeds
+
     clock_t diff = sys_time - last_sys_time;
     last_sys_time = sys_time;
 
@@ -417,19 +419,13 @@ static int generate_tokens() {
  * Compute how many tokens process used.
  *
  */
-static int p_used_tokens(int proc_nr) {
-    struct schedproc *rmp = &schedproc[proc_nr];
+static int p_used_tokens(struct schedproc *rmp) {
+    clock_t sys_time;
+    sys_times(rmp->endpoint, NULL, &sys_time, NULL, NULL); // always succeeds
 
-    clock_t sys_time = p_sys_time(proc_nr);
-    clock_t diff = sys_time - rmp->last_time;
-    rmp->last_time = sys_time;
+    clock_t diff = sys_time - rmp->tokens_updated;
+    rmp->tokens_updated = sys_time;
 
     return diff*SCHED_FACTOR;
 }
 
-clock_t p_sys_time(int proc_nr) {
-    clock_t buffer[5];
-    // REVIEW Is 0 a correct proc number?
-    sys_times(proc_nr, buffer); // TODO: check return (int) value
-    return buffer[1]; // m.SYSTEM_TIME
-}
