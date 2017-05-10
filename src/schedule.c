@@ -52,13 +52,13 @@ static unsigned cpu_proc[CONFIG_MAX_CPUS];
  * Evaluate number of tokens for proccess.
  *
  */
-static int generate_tokens() {
+static long generate_tokens() {
     static clock_t last_sys_time = 0;
 
     clock_t sys_time;
     sys_times(0, NULL, NULL, &sys_time, NULL); // always succeeds
 
-    int diff = sys_time - last_sys_time;
+    long diff = sys_time - last_sys_time;
     last_sys_time = sys_time;
 
     return diff*SCHED_FACTOR;
@@ -394,13 +394,13 @@ static void balance_queues(minix_timer_t *tp)
     static int next_process = 0;
     int start_process = next_process;
 
-    int tokens = generate_tokens();
+    long tokens = generate_tokens();
 
     struct schedproc *rmp = schedproc + next_process;
 
     while (tokens > 0) {
         if (rmp->flags & IN_USE) {
-            int diff;
+            long diff;
             if (rmp->tokens > 0)
                 diff = MAX_TOKENS - rmp->tokens;
             else
@@ -426,7 +426,7 @@ static void balance_queues(minix_timer_t *tp)
     int proc_nr;
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
 		if (rmp->flags & IN_USE) {
-			if (rmp->tokens > 0 && rmp->priority > rmp->max_priority) {
+			if (rmp->priority > rmp->max_priority) {
 				rmp->priority -= 1; /* increase priority */
 				schedule_process_local(rmp);
 			}
