@@ -10,10 +10,10 @@ cp snapshots/minix.img minix.img
 sleep 3
 
 # Copy files to MINIX.
-scp src/* minix:~/
-scp myps.sh minix:~/myps.sh
+scp src/* minix:~/sched/
+scp sched.sh minix:~/sched.sh
 
 # Execute installation of system call.
 ssh minix << ENDSSH
-sh myps.sh
+sh sched.sh
 ENDSSH
