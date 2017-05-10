@@ -10,8 +10,9 @@ cp snapshots/minix.img minix.img
 sleep 3
 
 # Copy files to MINIX.
-scp src/* minix:~/sched/
-scp sched.sh minix:~/sched.sh
+scp src/* minix:/usr/src/minix/servers/sched/
+scp sched.sh minix:~/
+scp test0.sh minix:~/
 
 # Execute installation of system call.
 ssh minix << ENDSSH

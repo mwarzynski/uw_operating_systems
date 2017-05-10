@@ -48,6 +48,36 @@ static void balance_queues(minix_timer_t *tp);
 
 static unsigned cpu_proc[CONFIG_MAX_CPUS];
 
+/*
+ * Evaluate number of tokens for proccess.
+ *
+ */
+static clock_t generate_tokens() {
+    static clock_t last_sys_time = 0;
+    clock_t sys_time;
+    
+    sys_times(0, NULL, NULL, &sys_time, NULL); // always succeeds
+
+    clock_t diff = sys_time - last_sys_time;
+    last_sys_time = sys_time;
+
+    return diff*SCHED_FACTOR;
+}
+
+/*
+ * Compute how many tokens process used.
+ *
+ */
+static clock_t p_used_tokens(struct schedproc *rmp) {
+    clock_t sys_time;
+    sys_times(rmp->endpoint, NULL, &sys_time, NULL, NULL); // always succeeds
+
+    clock_t diff = sys_time - rmp->tokens_updated;
+    rmp->tokens_updated = sys_time;
+
+    return diff*SCHED_FACTOR;
+}
+
 static void pick_cpu(struct schedproc * proc)
 {
 #ifdef CONFIG_SMP
@@ -98,6 +128,7 @@ int do_noquantum(message *m_ptr)
 		return EBADEPT;
 	}
 
+    printf("do_noquantum\n");
 	rmp = &schedproc[proc_nr_n];
     rmp->tokens -= p_used_tokens(rmp);
 
@@ -176,7 +207,8 @@ int do_start_scheduling(message *m_ptr)
 
     // Set token values
     rmp->tokens = MAX_TOKENS;
-    sys_time(rmp->endpoint, NULL, &rmp->tokens_updated, NULL, NULL);
+    sys_times(rmp->endpoint, NULL, &rmp->tokens_updated, NULL, NULL);
+    printf("set initial tokens\n");
 
 	/* Inherit current priority and time slice from parent. Since there
 	 * is currently only one scheduler scheduling the whole system, this
@@ -364,16 +396,20 @@ static void balance_queues(minix_timer_t *tp)
     static int next_process = 0;
     int start_process = next_process;
 	
-    int tokens = generate_tokens();
+    clock_t tokens = generate_tokens();
+    printf("Generated %ld tokens.\n", tokens);
+
     struct schedproc *rmp = schedproc + next_process;
 
+    printf("balance_queues.\n");
     while (tokens > 0) {
         if (next_process == start_process)
             break;
 
         if (rmp->flags & IN_USE) {
-            int diff = MAX_TOKENS - rmp->tokens;
+            clock_t diff = MAX_TOKENS - rmp->tokens;
             diff = tokens < diff ? tokens : diff;
+            printf("%ld, ", diff);
 
             tokens -= diff;
             rmp->tokens += diff;
@@ -387,6 +423,7 @@ static void balance_queues(minix_timer_t *tp)
             rmp = schedproc;
     }
 
+    int proc_nr;
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
 		if (rmp->flags & IN_USE) {
 			if (rmp->tokens > 0 && rmp->priority > rmp->max_priority) {
@@ -397,35 +434,5 @@ static void balance_queues(minix_timer_t *tp)
 	}
 
 	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
-}
-
-/*
- * Evaluate number of tokens for proccess.
- *
- */
-static int generate_tokens() {
-    static clock_t last_sys_time = 0;
-    clock_t sys_time;
-    
-    sys_times(0, NULL, NULL, &sys_time, NULL); // always succeeds
-
-    clock_t diff = sys_time - last_sys_time;
-    last_sys_time = sys_time;
-
-    return diff*SCHED_FACTOR;
-}
-
-/*
- * Compute how many tokens process used.
- *
- */
-static int p_used_tokens(struct schedproc *rmp) {
-    clock_t sys_time;
-    sys_times(rmp->endpoint, NULL, &sys_time, NULL, NULL); // always succeeds
-
-    clock_t diff = sys_time - rmp->tokens_updated;
-    rmp->tokens_updated = sys_time;
-
-    return diff*SCHED_FACTOR;
 }
 
