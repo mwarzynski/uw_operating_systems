@@ -19,8 +19,6 @@ scp mw371854.patch minix:~/
 scp sched.sh minix:~/
 scp test0.sh minix:~/
 
-rm mw371854.patch
-
 ssh minix << ENDSSH
 sh sched.sh
 ENDSSH
