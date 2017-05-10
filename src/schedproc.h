@@ -17,11 +17,11 @@
 
 // It should be named `SCHED_MAX_TOKENS`... but anyway, who cares.
 #ifndef MAX_TOKENS
-#define MAX_TOKENS 1000
+#define MAX_TOKENS 6
 #endif
 
 #ifndef SCHED_FACTOR
-#define SCHED_FACTOR 0.1
+#define SCHED_FACTOR 0.5
 #endif
 
 /**
@@ -42,7 +42,7 @@ EXTERN struct schedproc {
 	bitchunk_t cpu_mask[BITMAP_CHUNKS(CONFIG_MAX_CPUS)]; /* what CPUs is the process allowed to run on */
 
     /* Tokens */
-    clock_t tokens;        /* number of tokens */
+    int tokens;        /* number of tokens */
     clock_t tokens_updated; /* last sys time value when updated tokens for this process */
 } schedproc[NR_PROCS];
 

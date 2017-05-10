@@ -52,13 +52,13 @@ static unsigned cpu_proc[CONFIG_MAX_CPUS];
  * Evaluate number of tokens for proccess.
  *
  */
-static clock_t generate_tokens() {
+static int generate_tokens() {
     static clock_t last_sys_time = 0;
+
     clock_t sys_time;
-    
     sys_times(0, NULL, NULL, &sys_time, NULL); // always succeeds
 
-    clock_t diff = sys_time - last_sys_time;
+    int diff = sys_time - last_sys_time;
     last_sys_time = sys_time;
 
     return diff*SCHED_FACTOR;
@@ -68,14 +68,12 @@ static clock_t generate_tokens() {
  * Compute how many tokens process used.
  *
  */
-static clock_t p_used_tokens(struct schedproc *rmp) {
+static void p_used_tokens(struct schedproc *rmp) {
     clock_t sys_time;
     sys_times(rmp->endpoint, NULL, &sys_time, NULL, NULL); // always succeeds
 
-    clock_t diff = sys_time - rmp->tokens_updated;
+    rmp->tokens -= sys_time - rmp->tokens_updated;
     rmp->tokens_updated = sys_time;
-
-    return diff*SCHED_FACTOR;
 }
 
 static void pick_cpu(struct schedproc * proc)
@@ -83,7 +81,7 @@ static void pick_cpu(struct schedproc * proc)
 #ifdef CONFIG_SMP
 	unsigned cpu, c;
 	unsigned cpu_load = (unsigned) -1;
-	
+
 	if (machine.processors_count == 1) {
 		proc->cpu = machine.bsp_id;
 		return;
@@ -128,17 +126,13 @@ int do_noquantum(message *m_ptr)
 		return EBADEPT;
 	}
 
-    printf("do_noquantum\n");
 	rmp = &schedproc[proc_nr_n];
-    rmp->tokens -= p_used_tokens(rmp);
+
+    p_used_tokens(rmp);
 
 	if (rmp->priority < MIN_USER_Q) {
 		rmp->priority += 1; /* lower priority */
 	}
-
-    if (rmp->tokens <= 0) {
-        return OK;
-    }
 
 	if ((rv = schedule_process_local(rmp)) != OK) {
 		return rv;
@@ -181,9 +175,9 @@ int do_start_scheduling(message *m_ptr)
 {
 	register struct schedproc *rmp;
 	int rv, proc_nr_n, parent_nr_n;
-	
+
 	/* we can handle two kinds of messages here */
-	assert(m_ptr->m_type == SCHEDULING_START || 
+	assert(m_ptr->m_type == SCHEDULING_START ||
 		m_ptr->m_type == SCHEDULING_INHERIT);
 
 	/* check who can send you requests */
@@ -208,7 +202,6 @@ int do_start_scheduling(message *m_ptr)
     // Set token values
     rmp->tokens = MAX_TOKENS;
     sys_times(rmp->endpoint, NULL, &rmp->tokens_updated, NULL, NULL);
-    printf("set initial tokens\n");
 
 	/* Inherit current priority and time slice from parent. Since there
 	 * is currently only one scheduler scheduling the whole system, this
@@ -230,17 +223,17 @@ int do_start_scheduling(message *m_ptr)
 		/* FIXME set the cpu mask */
 #endif
 	}
-	
+
 	switch (m_ptr->m_type) {
 
 	case SCHEDULING_START:
 		/* We have a special case here for system processes, for which
-		 * quanum and priority are set explicitly rather than inherited 
+		 * quanum and priority are set explicitly rather than inherited
 		 * from the parent */
 		rmp->priority   = rmp->max_priority;
 		rmp->time_slice = m_ptr->m_lsys_sched_scheduling_start.quantum;
 		break;
-		
+
 	case SCHEDULING_INHERIT:
 		/* Inherit current priority and time slice from parent. Since there
 		 * is currently only one scheduler scheduling the whole system, this
@@ -252,8 +245,8 @@ int do_start_scheduling(message *m_ptr)
 		rmp->priority = schedproc[parent_nr_n].priority;
 		rmp->time_slice = schedproc[parent_nr_n].time_slice;
 		break;
-		
-	default: 
+
+	default:
 		/* not reachable */
 		assert(0);
 	}
@@ -341,7 +334,12 @@ int do_nice(message *m_ptr)
  *===========================================================================*/
 static int schedule_process(struct schedproc * rmp, unsigned flags)
 {
-	int err;
+    if (rmp->tokens <= 0) {
+        // don't schedule processes with negative number of tokens
+        return OK;
+    }
+
+    int err;
 	int new_prio, new_quantum, new_cpu;
 
 	pick_cpu(rmp);
@@ -361,8 +359,8 @@ static int schedule_process(struct schedproc * rmp, unsigned flags)
 	else
 		new_cpu = -1;
 
-	if ((err = sys_schedule(rmp->endpoint, new_prio,
-		new_quantum, new_cpu)) != OK) {
+
+	if ((err = sys_schedule(rmp->endpoint, new_prio, new_quantum, new_cpu)) != OK) {
 		printf("PM: An error occurred when trying to schedule %d: %d\n",
 		rmp->endpoint, err);
 	}
@@ -395,21 +393,19 @@ static void balance_queues(minix_timer_t *tp)
 {
     static int next_process = 0;
     int start_process = next_process;
-	
-    clock_t tokens = generate_tokens();
-    printf("Generated %ld tokens.\n", tokens);
+
+    int tokens = generate_tokens();
 
     struct schedproc *rmp = schedproc + next_process;
 
-    printf("balance_queues.\n");
     while (tokens > 0) {
-        if (next_process == start_process)
-            break;
-
         if (rmp->flags & IN_USE) {
-            clock_t diff = MAX_TOKENS - rmp->tokens;
+            int diff;
+            if (rmp->tokens > 0)
+                diff = MAX_TOKENS - rmp->tokens;
+            else
+                diff = MAX_TOKENS;
             diff = tokens < diff ? tokens : diff;
-            printf("%ld, ", diff);
 
             tokens -= diff;
             rmp->tokens += diff;
@@ -421,7 +417,11 @@ static void balance_queues(minix_timer_t *tp)
         rmp++;
         if (rmp == schedproc + NR_PROCS)
             rmp = schedproc;
-    }
+
+        if (next_process == start_process)
+            break;
+   }
+    start_process = next_process;
 
     int proc_nr;
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
