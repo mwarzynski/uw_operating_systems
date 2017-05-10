@@ -166,6 +166,10 @@ int do_start_scheduling(message *m_ptr)
 	}
 	rmp = &schedproc[proc_nr_n];
 
+    // Set token values
+    rmp->tokens = MAX_TOKENS;
+    rmp->last_time = 0;
+
 	/* Populate process slot */
 	rmp->endpoint     = m_ptr->m_lsys_sched_scheduling_start.endpoint;
 	rmp->parent       = m_ptr->m_lsys_sched_scheduling_start.parent;
