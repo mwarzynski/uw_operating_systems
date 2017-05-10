@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Patch sched
-cd /usr/src/minix
-patch -p1 < ~/mw371854.patch
+cd /usr/src
+patch -p0 < ~/mw371854.patch
 
 # Build scheduler
 cd /usr/src/minix/servers/sched
