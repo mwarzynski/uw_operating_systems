@@ -77,6 +77,39 @@ static void p_used_tokens(struct schedproc *rmp) {
     rmp->tokens_updated = sys_time;
 }
 
+/*
+ * Distribute tokens over processes.
+ *
+ */
+static void distribute_tokens() {
+    static int next_process = 0;
+    int start_process = next_process;
+
+    long tokens = generate_tokens();
+
+    struct schedproc *rmp = schedproc + next_process;
+
+    while (tokens > 0) {
+        if (rmp->flags & IN_USE) {
+            long diff = MAX_TOKENS - rmp->tokens;
+            diff = tokens < diff ? tokens : diff;
+
+            tokens -= diff;
+            rmp->tokens += diff;
+        }
+
+        next_process++;
+        if (next_process == NR_PROCS)
+            next_process = 0;
+        rmp++;
+        if (rmp == schedproc + NR_PROCS)
+            rmp = schedproc;
+
+        if (next_process == start_process)
+            break;
+   }
+}
+
 static void pick_cpu(struct schedproc * proc)
 {
 #ifdef CONFIG_SMP
@@ -130,6 +163,7 @@ int do_noquantum(message *m_ptr)
 	rmp = &schedproc[proc_nr_n];
 
     p_used_tokens(rmp);
+    distribute_tokens();
 
 	if (rmp->priority < MIN_USER_Q) {
 		rmp->priority += 1; /* lower priority */
@@ -393,34 +427,9 @@ void init_scheduling(void)
  */
 static void balance_queues(minix_timer_t *tp)
 {
-    static int next_process = 0;
-    int start_process = next_process;
+    distribute_tokens();
 
-    long tokens = generate_tokens();
-
-    struct schedproc *rmp = schedproc + next_process;
-
-    while (tokens > 0) {
-        if (rmp->flags & IN_USE) {
-            long diff = MAX_TOKENS - rmp->tokens;
-            diff = tokens < diff ? tokens : diff;
-
-            tokens -= diff;
-            rmp->tokens += diff;
-        }
-
-        next_process++;
-        if (next_process == NR_PROCS)
-            next_process = 0;
-        rmp++;
-        if (rmp == schedproc + NR_PROCS)
-            rmp = schedproc;
-
-        if (next_process == start_process)
-            break;
-   }
-    start_process = next_process;
-
+    struct schedproc *rmp;
     int proc_nr;
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
 		if (rmp->flags & IN_USE) {
@@ -430,7 +439,6 @@ static void balance_queues(minix_timer_t *tp)
 			}
 		}
 	}
-
 	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
 }
 
