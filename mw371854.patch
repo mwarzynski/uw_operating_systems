@@ -1,6 +1,6 @@
 diff -rupN minix/servers/sched/schedproc.h new/servers/sched/schedproc.h
 --- minix/servers/sched/schedproc.h	2017-05-10 22:43:54.550594195 +0200
-+++ new/servers/sched/schedproc.h	2017-05-11 00:56:50.563473622 +0200
++++ new/servers/sched/schedproc.h	2017-05-15 22:11:56.529344676 +0200
 @@ -15,6 +15,15 @@
  #define CONFIG_MAX_CPUS 1
  #endif
@@ -34,8 +34,18 @@ diff -rupN minix/servers/sched/schedproc.h new/servers/sched/schedproc.h
  /* Flag values */
 diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
 --- minix/servers/sched/schedule.c	2017-05-10 22:43:54.566594426 +0200
-+++ new/servers/sched/schedule.c	2017-05-11 00:56:50.563473622 +0200
-@@ -48,12 +48,40 @@ static void balance_queues(minix_timer_t
++++ new/servers/sched/schedule.c	2017-05-15 22:11:56.529344676 +0200
+@@ -17,6 +17,9 @@
+ static minix_timer_t sched_timer;
+ static unsigned balance_timeout;
+ 
++/* last_sys_time is used to evaluate how many tokens might be generated */
++static clock_t last_sys_time;
++
+ #define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
+ 
+ static int schedule_process(struct schedproc * rmp, unsigned flags);
+@@ -48,12 +51,71 @@ static void balance_queues(minix_timer_t
  
  static unsigned cpu_proc[CONFIG_MAX_CPUS];
  
@@ -44,8 +54,6 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
 + *
 + */
 +static long generate_tokens() {
-+    static clock_t last_sys_time = 0;
-+
 +    clock_t sys_time;
 +    sys_times(0, NULL, NULL, &sys_time, NULL); // always succeeds
 +
@@ -67,6 +75,39 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
 +    rmp->tokens_updated = sys_time;
 +}
 +
++/*
++ * Distribute tokens over processes.
++ *
++ */
++static void distribute_tokens() {
++    static int next_process = 0;
++    int start_process = next_process;
++
++    long tokens = generate_tokens();
++
++    struct schedproc *rmp = schedproc + next_process;
++
++    while (tokens > 0) {
++        if (rmp->flags & IN_USE) {
++            long diff = MAX_TOKENS - rmp->tokens;
++            diff = tokens < diff ? tokens : diff;
++
++            tokens -= diff;
++            rmp->tokens += diff;
++        }
++
++        next_process++;
++        if (next_process == NR_PROCS)
++            next_process = 0;
++        rmp++;
++        if (rmp == schedproc + NR_PROCS)
++            rmp = schedproc;
++
++        if (next_process == start_process)
++            break;
++   }
++}
++
  static void pick_cpu(struct schedproc * proc)
  {
  #ifdef CONFIG_SMP
@@ -77,17 +118,18 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
  	if (machine.processors_count == 1) {
  		proc->cpu = machine.bsp_id;
  		return;
-@@ -99,6 +127,9 @@ int do_noquantum(message *m_ptr)
+@@ -99,6 +161,10 @@ int do_noquantum(message *m_ptr)
  	}
  
  	rmp = &schedproc[proc_nr_n];
 +
 +    p_used_tokens(rmp);
++    distribute_tokens();
 +
  	if (rmp->priority < MIN_USER_Q) {
  		rmp->priority += 1; /* lower priority */
  	}
-@@ -144,9 +175,9 @@ int do_start_scheduling(message *m_ptr)
+@@ -144,9 +210,9 @@ int do_start_scheduling(message *m_ptr)
  {
  	register struct schedproc *rmp;
  	int rv, proc_nr_n, parent_nr_n;
@@ -99,7 +141,7 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
  		m_ptr->m_type == SCHEDULING_INHERIT);
  
  	/* check who can send you requests */
-@@ -168,6 +199,10 @@ int do_start_scheduling(message *m_ptr)
+@@ -168,6 +234,10 @@ int do_start_scheduling(message *m_ptr)
  		return EINVAL;
  	}
  
@@ -110,7 +152,7 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
  	/* Inherit current priority and time slice from parent. Since there
  	 * is currently only one scheduler scheduling the whole system, this
  	 * value is local and we assert that the parent endpoint is valid */
-@@ -188,17 +223,17 @@ int do_start_scheduling(message *m_ptr)
+@@ -188,17 +258,17 @@ int do_start_scheduling(message *m_ptr)
  		/* FIXME set the cpu mask */
  #endif
  	}
@@ -131,7 +173,7 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
  	case SCHEDULING_INHERIT:
  		/* Inherit current priority and time slice from parent. Since there
  		 * is currently only one scheduler scheduling the whole system, this
-@@ -210,8 +245,8 @@ int do_start_scheduling(message *m_ptr)
+@@ -210,8 +280,8 @@ int do_start_scheduling(message *m_ptr)
  		rmp->priority = schedproc[parent_nr_n].priority;
  		rmp->time_slice = schedproc[parent_nr_n].time_slice;
  		break;
@@ -142,7 +184,7 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
  		/* not reachable */
  		assert(0);
  	}
-@@ -299,7 +334,12 @@ int do_nice(message *m_ptr)
+@@ -299,7 +369,12 @@ int do_nice(message *m_ptr)
   *===========================================================================*/
  static int schedule_process(struct schedproc * rmp, unsigned flags)
  {
@@ -156,7 +198,7 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
  	int new_prio, new_quantum, new_cpu;
  
  	pick_cpu(rmp);
-@@ -319,8 +359,8 @@ static int schedule_process(struct sched
+@@ -319,8 +394,8 @@ static int schedule_process(struct sched
  	else
  		new_cpu = -1;
  
@@ -167,50 +209,32 @@ diff -rupN minix/servers/sched/schedule.c new/servers/sched/schedule.c
  		printf("PM: An error occurred when trying to schedule %d: %d\n",
  		rmp->endpoint, err);
  	}
-@@ -351,9 +391,39 @@ void init_scheduling(void)
+@@ -338,6 +413,7 @@ void init_scheduling(void)
+ 	balance_timeout = BALANCE_TIMEOUT * sys_hz();
+ 	init_timer(&sched_timer);
+ 	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
++    sys_times(0, NULL, NULL, &last_sys_time, NULL); // always succeeds
+ }
+ 
+ /*===========================================================================*
+@@ -351,9 +427,10 @@ void init_scheduling(void)
   */
  static void balance_queues(minix_timer_t *tp)
  {
 -	struct schedproc *rmp;
 -	int proc_nr;
-+    static int next_process = 0;
-+    int start_process = next_process;
-+
-+    long tokens = generate_tokens();
++    distribute_tokens();
  
-+    struct schedproc *rmp = schedproc + next_process;
-+
-+    while (tokens > 0) {
-+        if (rmp->flags & IN_USE) {
-+            long diff;
-+            if (rmp->tokens > 0)
-+                diff = MAX_TOKENS - rmp->tokens;
-+            else
-+                diff = MAX_TOKENS;
-+            diff = tokens < diff ? tokens : diff;
-+
-+            tokens -= diff;
-+            rmp->tokens += diff;
-+        }
-+
-+        next_process++;
-+        if (next_process == NR_PROCS)
-+            next_process = 0;
-+        rmp++;
-+        if (rmp == schedproc + NR_PROCS)
-+            rmp = schedproc;
-+
-+        if (next_process == start_process)
-+            break;
-+   }
-+    start_process = next_process;
-+
++    struct schedproc *rmp;
 +    int proc_nr;
  	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
  		if (rmp->flags & IN_USE) {
  			if (rmp->priority > rmp->max_priority) {
-@@ -365,3 +435,4 @@ static void balance_queues(minix_timer_t
- 
+@@ -362,6 +439,6 @@ static void balance_queues(minix_timer_t
+ 			}
+ 		}
+ 	}
+-
  	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
  }
 +
