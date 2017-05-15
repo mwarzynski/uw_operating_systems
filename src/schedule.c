@@ -17,6 +17,9 @@
 static minix_timer_t sched_timer;
 static unsigned balance_timeout;
 
+/* last_sys_time is used to evaluate how many tokens might be generated */
+static clock_t last_sys_time;
+
 #define BALANCE_TIMEOUT	5 /* how often to balance queues in seconds */
 
 static int schedule_process(struct schedproc * rmp, unsigned flags);
@@ -53,8 +56,6 @@ static unsigned cpu_proc[CONFIG_MAX_CPUS];
  *
  */
 static long generate_tokens() {
-    static clock_t last_sys_time = 0;
-
     clock_t sys_time;
     sys_times(0, NULL, NULL, &sys_time, NULL); // always succeeds
 
@@ -378,6 +379,7 @@ void init_scheduling(void)
 	balance_timeout = BALANCE_TIMEOUT * sys_hz();
 	init_timer(&sched_timer);
 	set_timer(&sched_timer, balance_timeout, balance_queues, 0);
+    sys_times(0, NULL, NULL, &last_sys_time, NULL); // always succeeds
 }
 
 /*===========================================================================*
