@@ -400,11 +400,7 @@ static void balance_queues(minix_timer_t *tp)
 
     while (tokens > 0) {
         if (rmp->flags & IN_USE) {
-            long diff;
-            if (rmp->tokens > 0)
-                diff = MAX_TOKENS - rmp->tokens;
-            else
-                diff = MAX_TOKENS;
+            long diff = MAX_TOKENS - rmp->tokens;
             diff = tokens < diff ? tokens : diff;
 
             tokens -= diff;
