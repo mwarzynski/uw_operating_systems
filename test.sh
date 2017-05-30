@@ -2,6 +2,10 @@
 
 for file in tests/*
 do
-  bash "$file"
+    bash "$file"
+
+    if [ $? -ne 0 ]; then
+        echo "$file error"
+    fi
 done
 
