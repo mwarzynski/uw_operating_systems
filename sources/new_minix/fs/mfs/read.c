@@ -270,10 +270,10 @@ int *completed;			/* number of bytes copied */
 		return r;
 	} else {
          // create buffer to get data from user space and be able to check if it's filled with zeros
-         char *buffer = calloc(sizeof(char), chunk);
+         char *buffer = calloc(sizeof(char), block_size);
 
          // copy bytes from user space to buffer
-         int r = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off, (vir_bytes)(buffer), (size_t)chunk);
+         int r = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off, (vir_bytes) (buffer+off), (size_t) chunk);
 
          if (r != OK) {
             printf("MFS: sys_safecopyfrom failed\n");
@@ -287,6 +287,7 @@ int *completed;			/* number of bytes copied */
                 break;
             }
          }
+
          free(buffer);
 
          if (is_empty) {
