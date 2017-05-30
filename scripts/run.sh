@@ -14,7 +14,7 @@ cp snapshots/minix.img minix.img
 # Wait for MINIX's sshd daemon.
 sleep 5
 
-# Copy files to MINIX.
+# Copy MFS files to MINIX.
 scp src/read.c minix:/usr/src/minix/fs/mfs/
 scp fs.sh minix:~/
 
