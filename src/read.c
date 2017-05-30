@@ -244,6 +244,7 @@ int *completed;			/* number of bytes copied */
    */
 
   *completed = 0;
+  int is_empty = 1;
 
   block_spec = (rip->i_mode & I_TYPE) == I_BLOCK_SPECIAL;
 
@@ -276,7 +277,6 @@ int *completed;			/* number of bytes copied */
          sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off, (vir_bytes) (buffer+off), (size_t) chunk);
 
          // check if buffer is filled with zeros
-         int is_empty = 1;
          for (int i = 0; i < block_size; i++) {
             if (buffer[i] != 0) {
                 is_empty = 0;
