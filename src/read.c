@@ -309,10 +309,30 @@ int *completed;			/* number of bytes copied */
 	r = sys_safecopyto(VFS_PROC_NR, gid, (vir_bytes) buf_off,
 			   (vir_bytes) (b_data(bp)+off), (size_t) chunk);
   } else if(rw_flag == WRITING) {
-	/* Copy a chunk from user space to the block buffer. */
-	r = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off,
-			     (vir_bytes) (b_data(bp)+off), (size_t) chunk);
-	MARKDIRTY(bp);
+
+     // create buffer to get data from user space and be able to check if it's filled with zeros
+     char *buffer = calloc(sizeof(char)*block_size)
+
+     // copy bytes from user space to buffer
+     sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off, (vir_bytes) (buffer+off), (size_t) chunk);
+
+     int is_empty = 1;
+
+     // check if buffer is filled with zeros
+     for (int i = 0; i < block_size; i++) {
+        if (buffer[i] != 0) {
+            is_empty = 0;
+            break;
+        }
+     }
+
+     // if block is not empty, write to disk
+     if (!is_empty) {
+        /* Copy a chunk from user space to the block buffer. */
+        r = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off,
+                     (vir_bytes) (b_data(bp)+off), (size_t) chunk);
+        MARKDIRTY(bp);
+    }
   }
   
   n = (off + chunk == block_size ? FULL_DATA_BLOCK : PARTIAL_DATA_BLOCK);
