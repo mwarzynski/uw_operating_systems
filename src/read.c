@@ -311,7 +311,7 @@ int *completed;			/* number of bytes copied */
   } else if(rw_flag == WRITING) {
 
      // create buffer to get data from user space and be able to check if it's filled with zeros
-     char *buffer = calloc(sizeof(char)*block_size)
+     char *buffer = calloc(sizeof(char), block_size);
 
      // copy bytes from user space to buffer
      sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off, (vir_bytes) (buffer+off), (size_t) chunk);
