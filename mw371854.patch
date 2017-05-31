@@ -1,6 +1,6 @@
 diff -rupN /usr/src/minix/fs/mfs/read.c /usr/src/new_minix/fs/mfs/read.c
 --- /usr/src/minix/fs/mfs/read.c	2017-05-31 00:11:25.051133211 +0200
-+++ /usr/src/new_minix/fs/mfs/read.c	2017-05-31 08:50:51.162788735 +0200
++++ /usr/src/new_minix/fs/mfs/read.c	2017-05-31 09:11:51.564125507 +0200
 @@ -269,6 +269,31 @@ int *completed;			/* number of bytes cop
  		}
  		return r;
@@ -9,7 +9,7 @@ diff -rupN /usr/src/minix/fs/mfs/read.c /usr/src/new_minix/fs/mfs/read.c
 +         char *buffer = calloc(sizeof(char), block_size);
 +
 +         if (buffer == NULL)
-+             panic("MFS, rw_chunk: allocating memory for checking if block is empty")
++             panic("MFS, rw_chunk: allocating memory for checking if block is empty");
 +
 +         // copy bytes from user space to buffer
 +         int r = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off, 
