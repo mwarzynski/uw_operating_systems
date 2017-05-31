@@ -273,7 +273,7 @@ int *completed;			/* number of bytes copied */
          char *buffer = calloc(sizeof(char), block_size);
 
          if (buffer == NULL)
-             panic("MFS, rw_chunk: allocating memory for checking if block is empty")
+             panic("MFS, rw_chunk: allocating memory for checking if block is empty");
 
          // copy bytes from user space to buffer
          int r = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes) buf_off, 
