@@ -7,8 +7,10 @@ fi
 
 cp src/read.c sources/new_minix/fs/mfs/
 cd sources
-#diff -rupN minix new_minix > ../mw371854.patch
+diff -rupN minix new_minix > ../mw371854.patch
 cd ..
+
+exit 0
 
 # Revert MINIX image to last clean one.
 cp snapshots/minix.img minix.img
