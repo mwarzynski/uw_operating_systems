@@ -1,11 +1,14 @@
-#!/bin/bash
+#!/bin/sh
 
-for file in tests/*
+for test in tests/*
 do
-    bash "$file"
-
-    if [ $? -ne 0 ]; then
-        echo "$file error"
+    echo -e "\033[0;33mTEST: $test\033[0m"
+    (time ./$test $1) 2>&1 | grep real
+    if [ $? -eq 0 ]; then
+        echo -e "\033[0;32mOK\033[0m"
+    else
+        echo "ERR"
     fi
+    echo ""
 done
 
