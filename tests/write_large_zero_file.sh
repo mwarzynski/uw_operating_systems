@@ -6,4 +6,3 @@ do
     sync
     rm file
 done
-
