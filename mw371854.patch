@@ -1,6 +1,6 @@
-diff -rupN minix/fs/mfs/read.c new_minix/fs/mfs/read.c
---- minix/fs/mfs/read.c	2017-05-31 19:17:52.616897426 +0200
-+++ new_minix/fs/mfs/read.c	2017-05-31 23:57:05.059101728 +0200
+diff -rupN /usr/src/minix/fs/mfs/read.c /usr/src/new_minix/fs/mfs/read.c
+--- /usr/src/minix/fs/mfs/read.c	2017-05-31 19:17:52.616897426 +0200
++++ /usr/src/new_minix/fs/mfs/read.c	2017-05-31 23:57:05.059101728 +0200
 @@ -269,6 +269,36 @@ int *completed;			/* number of bytes cop
  		}
  		return r;
