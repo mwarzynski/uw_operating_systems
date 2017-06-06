@@ -43,6 +43,11 @@ int allocate_buffer() {
     return OK;
 }
 
+void initialize_buffer() {
+    for (int i = 0; i < DEVICE_SIZE; i++)
+        buffer[i] = 'a';
+}
+
 static ssize_t hello_read(devminor_t UNUSED(minor), u64_t position,
     endpoint_t endpt, cp_grant_id_t grant, size_t size, int UNUSED(flags),
     cdev_id_t UNUSED(id)) {
@@ -94,6 +99,7 @@ static int sef_cb_lu_state_save(int UNUSED(state)) {
 
     return OK;
 }
+
 
 static int lu_state_restore() {
     u32_t value;
@@ -148,15 +154,14 @@ static int sef_cb_init(int type, sef_init_info_t *UNUSED(info))
     open_counter = 0;
     switch(type) {
         case SEF_INIT_FRESH:
-            for (int i = 0; i < DEVICE_SIZE; i++)
-                buffer[i] = 'a';
+            initialize_buffer();
         break;
 
         case SEF_INIT_LU:
-            /* Restore the state. */
-            lu_state_restore();
-            buffer_restore(); // REVIEW what if error occurred here?
             do_announce_driver = FALSE;
+            lu_state_restore();
+            if (buffer_restore() != OK)
+                return EXIT_FAILURE;
         break;
 
         case SEF_INIT_RESTART:
